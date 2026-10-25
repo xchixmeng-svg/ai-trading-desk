@@ -33,12 +33,6 @@ gcloud billing projects link "$PROJECT" --billing-account="$BILLING" --quiet >/d
 say "3/6 啟用 Compute Engine（約 1 分鐘）"
 gcloud services enable compute.googleapis.com --quiet
 
-say "4/6 AI 金鑰（沒有的直接按 Enter 跳過，之後可以補）"
-read -r -p "Anthropic (Claude) 金鑰: " K_ANT || true
-read -r -p "OpenAI (GPT) 金鑰: " K_OAI || true
-read -r -p "Google AI Studio (Gemini) 金鑰: " K_GEM || true
-read -r -p "xAI (Grok) 金鑰: " K_XAI || true
-
 say "5/6 建立主機（台灣 asia-east1，e2-small）"
 gcloud compute addresses describe "$VM-ip" --region=$REGION >/dev/null 2>&1 || \
   gcloud compute addresses create "$VM-ip" --region=$REGION --quiet
@@ -46,7 +40,7 @@ IP=$(gcloud compute addresses describe "$VM-ip" --region=$REGION --format='value
 gcloud compute firewall-rules describe atd-allow-web >/dev/null 2>&1 || \
   gcloud compute firewall-rules create atd-allow-web --allow=tcp:80,tcp:443 --target-tags=atd-web --quiet
 curl -fsSL "$BOOT_URL?t=$(date +%s)" -o /tmp/atd_boot.sh
-META="atd-bundle-url=$BUNDLE_URL,atd-bundle-key=$KEY,anthropic-key=${K_ANT:-},openai-key=${K_OAI:-},gemini-key=${K_GEM:-},xai-key=${K_XAI:-}"
+META="atd-bundle-url=$BUNDLE_URL,atd-bundle-key=$KEY"
 if gcloud compute instances describe $VM --zone=$ZONE >/dev/null 2>&1; then
   gcloud compute instances add-metadata $VM --zone=$ZONE --metadata="$META" \
     --metadata-from-file=startup-script=/tmp/atd_boot.sh --quiet
