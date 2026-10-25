@@ -31,6 +31,7 @@ ANTHROPIC_API_KEY=$(md anthropic-key)
 OPENAI_API_KEY=$(md openai-key)
 GEMINI_API_KEY=$(md gemini-key)
 XAI_API_KEY=$(md xai-key)
+ATD_BILLING_TOKEN=$(md atd-billing-token)
 ENV
 echo "ATD_DOMAIN=$DOMAIN" > /etc/ai-trading-desk/caddy.env
 chmod 600 /etc/ai-trading-desk/atd.env
