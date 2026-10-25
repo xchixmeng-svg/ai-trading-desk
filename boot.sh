@@ -7,6 +7,7 @@ MD=http://metadata.google.internal/computeMetadata/v1
 md() { curl -fsS -H "Metadata-Flavor: Google" "$MD/instance/attributes/$1" 2>/dev/null || true; }
 APP=/opt/ai-trading-desk
 log() { echo "[atd-boot] $*"; logger -t atd-boot "$*"; }
+TOOLS_ONLY=0; [ "${1:-}" = "--tools-only" ] && TOOLS_ONLY=1
 
 if ! command -v docker >/dev/null 2>&1; then
   log "installing docker"
@@ -58,7 +59,10 @@ if [ "$NEW" != "$OLD" ] || [ "${1:-}" = "--force" ]; then
   if (cd "$APP.new/infra" && docker compose build worker); then
     rm -rf "$APP.old"; [ -d "$APP" ] && mv "$APP" "$APP.old"; mv "$APP.new" "$APP"
     echo "$NEW" > "$APP/.bundle_sha"
-    (cd "$APP/infra" && docker compose up -d --remove-orphans)
+    # force-recreate: the old directory was moved away, containers must re-mount the new one
+    (cd "$APP/infra" && docker compose up -d --force-recreate --remove-orphans)
+    # refresh this updater + cron from the (encrypted, trusted) bundle
+    bash "$APP/infra/gce/vm_boot.sh" --tools-only >/dev/null 2>&1 || true
     logger -t atd-update "deployed bundle $NEW"
   else
     logger -t atd-update "build failed for $NEW, keeping current version"
@@ -68,17 +72,22 @@ rm -rf "$TMP"
 UPD
 chmod +x /usr/local/bin/atd-update
 
+# ---- cron: auto-update every 15 min, backup nightly -----------------------------------
+cat > /etc/cron.d/ai-trading-desk <<CRON
+*/15 * * * * root /usr/local/bin/atd-update >/dev/null 2>&1
+15 3 * * * root sqlite3 /var/lib/ai-trading-desk/ai_trading_desk.sqlite3 ".backup '/var/backups/ai-trading-desk/atd-\$(date -u +\%Y\%m\%d).sqlite3'" && find /var/backups/ai-trading-desk -name 'atd-*.sqlite3' -mtime +14 -delete
+CRON
+if [ "$TOOLS_ONLY" = 1 ]; then
+  log "tools refreshed"
+  exit 0
+fi
+
 # ---- first install -------------------------------------------------------------------
 if [ ! -d "$APP" ]; then
   log "first install"
   /usr/local/bin/atd-update --force || true
 fi
 
-(cd "$APP/infra" && docker compose up -d --remove-orphans)
+(cd "$APP/infra" && docker compose up -d --force-recreate --remove-orphans)
 
-# ---- cron: auto-update every 15 min, backup nightly -----------------------------------
-cat > /etc/cron.d/ai-trading-desk <<CRON
-*/15 * * * * root /usr/local/bin/atd-update >/dev/null 2>&1
-15 3 * * * root sqlite3 /var/lib/ai-trading-desk/ai_trading_desk.sqlite3 ".backup '/var/backups/ai-trading-desk/atd-\$(date -u +\%Y\%m\%d).sqlite3'" && find /var/backups/ai-trading-desk -name 'atd-*.sqlite3' -mtime +14 -delete
-CRON
 log "up at https://$DOMAIN"
