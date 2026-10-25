@@ -15,6 +15,11 @@ if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
   systemctl enable --now docker
 fi
+# 1 GB swap so a small machine (e2-micro, 1 GB RAM) survives image builds
+if [ ! -f /swapfile ]; then
+  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+swapon -a 2>/dev/null || true
 mkdir -p /var/lib/ai-trading-desk /var/lib/ai-trading-desk-caddy /var/backups/ai-trading-desk
 chown 10001 /var/lib/ai-trading-desk
 
