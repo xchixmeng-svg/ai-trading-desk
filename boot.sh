@@ -40,7 +40,10 @@ chmod 600 /etc/ai-trading-desk/atd.env
 # ---- updater: download bundle, rebuild only if it changed ----------------------------
 cat > /usr/local/bin/atd-update <<'UPD'
 #!/bin/bash
-set -u
+set -eu
+# Cron and a manual update must never rotate the release at the same time.
+exec 9>/var/lock/atd-update.lock
+flock -n 9 || exit 0
 MD=http://metadata.google.internal/computeMetadata/v1
 md() { curl -fsS -H "Metadata-Flavor: Google" "$MD/instance/attributes/$1" 2>/dev/null || true; }
 APP=/opt/ai-trading-desk
@@ -48,29 +51,20 @@ URL=$(md atd-bundle-url)
 KEY=$(md atd-bundle-key)
 [ -z "$URL" ] && exit 0
 TMP=$(mktemp -d)
-curl -fsSL "$URL?t=$(date +%s)" -o "$TMP/b.enc" || { rm -rf "$TMP"; exit 0; }
-# bundle is AES-256 encrypted in the public dist repo; key lives only in instance metadata
-openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass "pass:$KEY" -in "$TMP/b.enc" -out "$TMP/b.tgz" \
-  || { logger -t atd-update "decrypt failed"; rm -rf "$TMP"; exit 0; }
+trap 'rm -rf "$TMP"' EXIT
+curl -fsSL "$URL?t=$(date +%s)" -o "$TMP/b.enc"
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass "pass:$KEY" -in "$TMP/b.enc" -out "$TMP/b.tgz"
 NEW=$(sha256sum "$TMP/b.tgz" | cut -d' ' -f1)
 OLD=$(cat "$APP/.bundle_sha" 2>/dev/null || true)
 if [ "$NEW" != "$OLD" ] || [ "${1:-}" = "--force" ]; then
-  mkdir -p "$TMP/x" && tar -xzf "$TMP/b.tgz" -C "$TMP/x"
-  rm -rf "$APP.new" && mv "$TMP/x" "$APP.new"
-  # build first; tests run inside the build, so a broken bundle never replaces a running one
-  if (cd "$APP.new/infra" && docker compose build worker); then
-    rm -rf "$APP.old"; [ -d "$APP" ] && mv "$APP" "$APP.old"; mv "$APP.new" "$APP"
-    echo "$NEW" > "$APP/.bundle_sha"
-    # force-recreate: the old directory was moved away, containers must re-mount the new one
-    (cd "$APP/infra" && docker compose up -d --force-recreate --remove-orphans)
-    # refresh this updater + cron from the (encrypted, trusted) bundle
-    bash "$APP/infra/gce/vm_boot.sh" --tools-only >/dev/null 2>&1 || true
-    logger -t atd-update "deployed bundle $NEW"
-  else
-    logger -t atd-update "build failed for $NEW, keeping current version"
-  fi
+  mkdir -p "$TMP/x"
+  tar -xzf "$TMP/b.tgz" -C "$TMP/x"
+  rm -rf "$APP.new"
+  mv "$TMP/x" "$APP.new"
+  bash "$APP.new/scripts/activate_release.sh" "$APP" "$APP.new" "$NEW"
+  # Only a healthy release may refresh the updater.
+  bash "$APP/infra/gce/vm_boot.sh" --tools-only
 fi
-rm -rf "$TMP"
 UPD
 chmod +x /usr/local/bin/atd-update
 
