@@ -1,3 +1,3 @@
-# ai-trading-desk (deploy files)
+# ai-trading-desk (setup scripts)
 
-Encrypted deployment bundle for a private shadow-trading desk. Source is not published here.
+One-paste setup scripts for a private shadow-trading desk. Source code is not published here.
