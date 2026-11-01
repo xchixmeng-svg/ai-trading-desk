@@ -78,17 +78,12 @@ flock -n 9 || exit 0
 APP=/opt/ai-trading-desk
 COMPOSE="$APP/infra/docker-compose.yml"
 [ -f "$COMPOSE" ] || exit 0
-api_ok() {
-  curl -fsS --max-time 6 http://127.0.0.1:8080/api/health 2>/dev/null |
-    grep -Eq '"worker"[[:space:]]*:[[:space:]]*"OK"'
-}
+# 11/01 fix: the worker only EXPOSEs 8080 on the compose network (Caddy reaches it as worker:8080); it is not
+# published on the host, so a host-side curl to the loopback port always failed and this script restarted a healthy
+# worker every 2 minutes. Judge health from Docker's own healthcheck (it runs inside the container) instead.
 state=$(docker inspect -f '{{.State.Status}}' atd-worker 2>/dev/null || true)
 health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' atd-worker 2>/dev/null || true)
-if [ "$state" = "running" ] && api_ok; then
-  exit 0
-fi
-# Docker's healthcheck has a startup grace period. Do not thrash a legitimate bootstrap.
-if [ "$state" = "running" ] && [ "$health" = "starting" ]; then
+if [ "$state" = "running" ] && { [ "$health" = "healthy" ] || [ "$health" = "starting" ]; }; then
   exit 0
 fi
 logger -t atd-health "worker unhealthy (state=${state:-missing}, health=${health:-none}); attempting recovery"
@@ -98,15 +93,8 @@ docker compose up -d --no-build worker caddy >/dev/null 2>&1 || true
 if [ "$state" = "running" ]; then
   docker compose restart worker >/dev/null 2>&1 || true
 fi
-for _ in $(seq 1 24); do
-  sleep 5
-  if api_ok; then
-    logger -t atd-health "worker recovered"
-    exit 0
-  fi
-done
-logger -t atd-health "worker recovery failed; updater/release recovery required"
-exit 1
+logger -t atd-health "worker (re)started; Docker healthcheck takes it from here"
+exit 0
 HEAL
 chmod +x /usr/local/bin/atd-health
 
