@@ -40,7 +40,7 @@ gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL --role=roles/iam.wo
   --member="principalSet://iam.googleapis.com/projects/$NUM/locations/global/workloadIdentityPools/github/attribute.repository/$REPO" \
   --quiet >/dev/null
 
-say "3/5 開放 SSH（只接受 Google 驗證過的帳號登入）"
+say "3/5 開放 SSH（只接受每次部署臨時產生的金鑰）"
 gcloud compute firewall-rules describe atd-allow-ssh >/dev/null 2>&1 || \
   gcloud compute firewall-rules create atd-allow-ssh --allow=tcp:22 --target-tags=atd-web --quiet
 gcloud compute firewall-rules describe atd-allow-web >/dev/null 2>&1 || \
@@ -49,8 +49,7 @@ gcloud compute firewall-rules describe atd-allow-web >/dev/null 2>&1 || \
 say "4/5 更新主機開機程式並啟動"
 curl -fsSL "$BOOT_URL?t=$(date +%s)" -o /tmp/atd_boot.sh
 if gcloud compute instances describe $VM --zone=$ZONE >/dev/null 2>&1; then
-  gcloud compute instances add-metadata $VM --zone=$ZONE --metadata=enable-oslogin=TRUE \
-    --metadata-from-file=startup-script=/tmp/atd_boot.sh --quiet
+  gcloud compute instances add-metadata $VM --zone=$ZONE --metadata-from-file=startup-script=/tmp/atd_boot.sh --quiet
   if [ "$(gcloud compute instances describe $VM --zone=$ZONE --format='value(status)')" = RUNNING ]; then
     gcloud compute instances reset $VM --zone=$ZONE --quiet
   else
@@ -61,7 +60,7 @@ else
   gcloud compute instances create $VM --zone=$ZONE --machine-type=e2-small \
     --image-family=debian-12 --image-project=debian-cloud \
     --boot-disk-size=20GB --boot-disk-type=pd-balanced --address="$IP" --tags=atd-web \
-    --metadata=enable-oslogin=TRUE --metadata-from-file=startup-script=/tmp/atd_boot.sh --quiet
+    --metadata-from-file=startup-script=/tmp/atd_boot.sh --quiet
 fi
 
 say "5/5 完成。把下面這串數字貼給 Claude："

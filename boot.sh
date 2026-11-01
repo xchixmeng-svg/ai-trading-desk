@@ -11,6 +11,35 @@ APP=/opt/ai-trading-desk
 log() { echo "[atd-boot] $*"; logger -t atd-boot "$*" 2>/dev/null || true; }
 TOOLS_ONLY=0; [ "${1:-}" = "--tools-only" ] && TOOLS_ONLY=1
 
+# ---- free disk first if it is (nearly) full -----------------------------------------------------------------
+USE=$(df --output=pcent / | tail -1 | tr -dc 0-9)
+log "disk ${USE}%"
+if [ "${USE:-0}" -ge 90 ]; then
+  log "disk nearly full: cleaning"
+  ls -1t /var/backups/ai-trading-desk/atd-*.sqlite3 2>/dev/null | tail -n +2 | xargs -r rm -f
+  journalctl --vacuum-size=50M >/dev/null 2>&1 || true
+  apt-get clean >/dev/null 2>&1 || true
+  rm -rf /opt/ai-trading-desk.new /opt/ai-trading-desk.prev /opt/ai-trading-desk.old
+  command -v docker >/dev/null 2>&1 && { docker builder prune -af >/dev/null 2>&1; docker image prune -f >/dev/null 2>&1; } || true
+  log "disk after cleaning $(df --output=pcent / | tail -1)"
+fi
+
+# ---- deploy login (11/01): user "deploy", key from metadata atd-deploy-key, passwordless sudo -----------------
+# Done by this root script itself (the guest agent did not create users / sudo on this VM). Refreshed every minute.
+id deploy >/dev/null 2>&1 || useradd -m -s /bin/bash deploy
+echo 'deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-atd-deploy && chmod 440 /etc/sudoers.d/90-atd-deploy
+cat > /usr/local/sbin/atd-deploy-key <<'KEY'
+#!/bin/sh
+k=$(curl -fsS -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/atd-deploy-key 2>/dev/null) || exit 0
+[ -n "$k" ] || exit 0
+mkdir -p /home/deploy/.ssh && printf '%s\n' "$k" > /home/deploy/.ssh/authorized_keys.new \
+  && mv /home/deploy/.ssh/authorized_keys.new /home/deploy/.ssh/authorized_keys
+chown -R deploy:deploy /home/deploy/.ssh; chmod 700 /home/deploy/.ssh; chmod 600 /home/deploy/.ssh/authorized_keys
+KEY
+chmod 755 /usr/local/sbin/atd-deploy-key
+echo '* * * * * root /usr/local/sbin/atd-deploy-key' > /etc/cron.d/atd-deploy-key && chmod 644 /etc/cron.d/atd-deploy-key
+/usr/local/sbin/atd-deploy-key
+
 if ! command -v docker >/dev/null 2>&1; then
   log "installing docker"
   apt-get update -y && apt-get install -y ca-certificates curl sqlite3
