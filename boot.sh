@@ -71,9 +71,13 @@ chmod +x /usr/local/bin/atd-update
 # ---- cron: auto-update every 15 min, backup nightly -----------------------------------
 cat > /etc/cron.d/ai-trading-desk <<CRON
 */15 * * * * root /usr/local/bin/atd-update >/dev/null 2>&1
-15 3 * * * root sqlite3 /var/lib/ai-trading-desk/ai_trading_desk.sqlite3 ".backup '/var/backups/ai-trading-desk/atd-\$(date -u +\%Y\%m\%d).sqlite3'" && find /var/backups/ai-trading-desk -name 'atd-*.sqlite3' -mtime +14 -delete
+15 3 * * * root sqlite3 /var/lib/ai-trading-desk/ai_trading_desk.sqlite3 ".backup '/var/backups/ai-trading-desk/atd-\$(date -u +\%Y\%m\%d).sqlite3'" && find /var/backups/ai-trading-desk -name 'atd-*.sqlite3' -mtime +1 -delete
 CRON
 if [ "$TOOLS_ONLY" = 1 ]; then
+  # 11/01 (Chi): keep at most 2 days on the VM - only the two newest nightly backups; drop dangling images / build cache
+  ls -1t /var/backups/ai-trading-desk/atd-*.sqlite3 2>/dev/null | tail -n +3 | xargs -r rm -f
+  docker image prune -f >/dev/null 2>&1 || true
+  docker builder prune -f >/dev/null 2>&1 || true
   log "tools refreshed"
   exit 0
 fi
