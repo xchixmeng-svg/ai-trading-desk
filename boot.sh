@@ -80,6 +80,23 @@ CRON
 chmod 644 /etc/cron.d/ai-trading-desk
 ls -1t /var/backups/ai-trading-desk/atd-*.sqlite3 2>/dev/null | tail -n +3 | xargs -r rm -f
 
+# ---- disk guard (11/01, Chi: "不要再爆了"), every 10 min -------------------------------------------------------
+# >=70%: keep only the newest backup; the level file tells the worker to keep less: >=80% bars 1 day, >=90% logs too.
+cat > /usr/local/sbin/atd-disk-guard <<'GUARD'
+#!/bin/sh
+U=$(df --output=pcent / | tail -1 | tr -dc 0-9)
+L=0; [ "$U" -ge 70 ] && L=1; [ "$U" -ge 80 ] && L=2; [ "$U" -ge 90 ] && L=3
+[ "$L" -ge 1 ] && ls -1t /var/backups/ai-trading-desk/atd-*.sqlite3 2>/dev/null | tail -n +2 | xargs -r rm -f
+[ "$L" -ge 2 ] && { docker image prune -f >/dev/null 2>&1; journalctl --vacuum-size=50M >/dev/null 2>&1; }
+echo "$L" > /var/lib/ai-trading-desk/disk_pressure.tmp && mv /var/lib/ai-trading-desk/disk_pressure.tmp /var/lib/ai-trading-desk/disk_pressure
+chmod 644 /var/lib/ai-trading-desk/disk_pressure
+[ "$L" -ge 1 ] && logger -t atd-disk-guard "disk ${U}% level $L"
+exit 0
+GUARD
+chmod 755 /usr/local/sbin/atd-disk-guard
+echo '*/10 * * * * root /usr/local/sbin/atd-disk-guard' > /etc/cron.d/atd-disk-guard && chmod 644 /etc/cron.d/atd-disk-guard
+/usr/local/sbin/atd-disk-guard
+
 if [ "$TOOLS_ONLY" = 1 ]; then
   log "tools refreshed"
   exit 0
