@@ -1,7 +1,7 @@
 #!/bin/bash
 # GCE startup script (runs on every boot, as root).
 # Installs Docker once, fetches the code bundle, writes .env from instance metadata,
-# starts the stack, and installs an auto-updater + runtime watchdog + nightly DB backup.
+# starts the stack, and installs an auto-updater + nightly DB backup.
 set -u
 MD=http://metadata.google.internal/computeMetadata/v1
 md() { curl -fsS -H "Metadata-Flavor: Google" "$MD/instance/attributes/$1" 2>/dev/null || true; }
@@ -62,45 +62,14 @@ if [ "$NEW" != "$OLD" ] || [ "${1:-}" = "--force" ]; then
   rm -rf "$APP.new"
   mv "$TMP/x" "$APP.new"
   bash "$APP.new/scripts/activate_release.sh" "$APP" "$APP.new" "$NEW"
-  # Only a healthy release may refresh the updater/watchdog tools.
+  # Only a healthy release may refresh the updater.
   bash "$APP/infra/gce/vm_boot.sh" --tools-only
 fi
 UPD
 chmod +x /usr/local/bin/atd-update
 
-# ---- watchdog: recover a dead/unhealthy worker even when the bundle did not change ----
-cat > /usr/local/bin/atd-health <<'HEAL'
-#!/bin/bash
-set -u
-# Never restart the stack while a release rotation is in progress.
-exec 9>/var/lock/atd-update.lock
-flock -n 9 || exit 0
-APP=/opt/ai-trading-desk
-COMPOSE="$APP/infra/docker-compose.yml"
-[ -f "$COMPOSE" ] || exit 0
-# 11/01 fix: the worker only EXPOSEs 8080 on the compose network (Caddy reaches it as worker:8080); it is not
-# published on the host, so a host-side curl to the loopback port always failed and this script restarted a healthy
-# worker every 2 minutes. Judge health from Docker's own healthcheck (it runs inside the container) instead.
-state=$(docker inspect -f '{{.State.Status}}' atd-worker 2>/dev/null || true)
-health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' atd-worker 2>/dev/null || true)
-if [ "$state" = "running" ] && { [ "$health" = "healthy" ] || [ "$health" = "starting" ]; }; then
-  exit 0
-fi
-logger -t atd-health "worker unhealthy (state=${state:-missing}, health=${health:-none}); attempting recovery"
-cd "$APP/infra" || exit 1
-# Missing/stopped containers are started; an unhealthy running worker is explicitly restarted.
-docker compose up -d --no-build worker caddy >/dev/null 2>&1 || true
-if [ "$state" = "running" ]; then
-  docker compose restart worker >/dev/null 2>&1 || true
-fi
-logger -t atd-health "worker (re)started; Docker healthcheck takes it from here"
-exit 0
-HEAL
-chmod +x /usr/local/bin/atd-health
-
-# ---- cron: health every 2 min, auto-update every 15 min, backup nightly ---------------
+# ---- cron: auto-update every 15 min, backup nightly -----------------------------------
 cat > /etc/cron.d/ai-trading-desk <<CRON
-*/2 * * * * root /usr/local/bin/atd-health >/dev/null 2>&1
 */15 * * * * root /usr/local/bin/atd-update >/dev/null 2>&1
 15 3 * * * root sqlite3 /var/lib/ai-trading-desk/ai_trading_desk.sqlite3 ".backup '/var/backups/ai-trading-desk/atd-\$(date -u +\%Y\%m\%d).sqlite3'" && find /var/backups/ai-trading-desk -name 'atd-*.sqlite3' -mtime +14 -delete
 CRON
