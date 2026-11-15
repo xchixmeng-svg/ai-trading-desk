@@ -22,6 +22,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -36,7 +37,11 @@ KCOLS = ["open_time", "open", "high", "low", "close", "volume", "close_time", "q
          "taker_buy_volume", "taker_buy_quote", "ignore"]
 
 
+ERRORS = []
+
+
 def get(url, tries=6):
+    url = urllib.parse.quote(url, safe=":/?=&%")              # symbols such as 哈基米USDT
     for i in range(tries):
         try:
             return urllib.request.urlopen(url, timeout=120).read()
@@ -46,13 +51,18 @@ def get(url, tries=6):
         except Exception:
             pass
         time.sleep(min(30, 2 ** i))
-    raise RuntimeError(f"failed: {url}")
+    ERRORS.append(url)                                       # recorded in manifest.json, never silently skipped
+    print("FAILED", url, flush=True)
+    return None
 
 
 def symbols():
     out, marker, prefix = [], "", "data/futures/um/monthly/klines/"
     while True:
-        x = get(S3 + prefix + (f"&marker={marker}" if marker else "")).decode()
+        x = get(S3 + prefix + (f"&marker={marker}" if marker else ""))
+        if x is None:
+            raise RuntimeError("symbol index unavailable")
+        x = x.decode()
         p = re.findall(r"<Prefix>" + re.escape(prefix) + r"([^<]+)/</Prefix>", x)
         out += p
         if "<IsTruncated>true" not in x:
@@ -180,6 +190,7 @@ def main():
     man = {"month": month, "symbols": have, "files": files,
            "sizes_mb": {f: round(os.path.getsize(f"{out}/{f}") / 1e6, 1) for f in files},
            "source": "https://data.binance.vision (Binance public archive), USDT-margined perpetuals incl. delisted",
+           "errors": ERRORS,
            "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     json.dump(man, open(f"{out}/manifest.json", "w"), indent=1)
     print(json.dumps({k: man[k] for k in ("month", "files", "sizes_mb")}), len(have), "symbols")
