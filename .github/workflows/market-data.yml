@@ -1,0 +1,73 @@
+# Shared market data (Chi, 2026-11-15): Binance USDT perpetuals -> monthly Parquet files on GitHub Releases.
+# Public repo: Actions minutes and release downloads are free. Holds no secrets.
+name: market-data
+on:
+  workflow_dispatch:
+    inputs:
+      start: {description: "first month YYYY-MM", default: "2023-10"}
+      end:   {description: "last month YYYY-MM (empty = last complete month)", default: ""}
+  schedule:
+    - cron: "17 6 3 * *"        # 3rd of each month: add the month that just ended, rebuild meta
+permissions:
+  contents: write
+concurrency: {group: market-data, cancel-in-progress: false}
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      months: ${{ steps.m.outputs.months }}
+      start: ${{ steps.m.outputs.start }}
+      end: ${{ steps.m.outputs.end }}
+    steps:
+      - id: m
+        run: |
+          END="${{ inputs.end }}"; [ -z "$END" ] && END=$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m)
+          START="${{ inputs.start }}"; [ -z "$START" ] && START=$END
+          python3 - "$START" "$END" >> "$GITHUB_OUTPUT" <<'PY'
+          import sys, json
+          a, b = sys.argv[1], sys.argv[2]; y, m = map(int, a.split("-")); out = []
+          while f"{y}-{m:02d}" <= b:
+              out.append(f"{y}-{m:02d}"); m += 1
+              if m == 13: y, m = y + 1, 1
+          print("months=" + json.dumps(out)); print("start=" + a); print("end=" + b)
+          PY
+  month:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        month: ${{ fromJson(needs.plan.outputs.months) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pandas pyarrow
+      - working-directory: market-data
+        run: python build_month.py ${{ matrix.month }}
+      - working-directory: market-data
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          T=m-${{ matrix.month }}
+          gh release view $T >/dev/null 2>&1 || gh release create $T --title "market data ${{ matrix.month }}" --notes "Binance USDT perpetuals, ${{ matrix.month }}. See market-data/README.md."
+          gh release upload $T out/${{ matrix.month }}/* --clobber
+  meta:
+    needs: [plan, month]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pandas pyarrow
+      - working-directory: market-data
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          FIRST=$(gh release list --limit 500 --json tagName -q '.[].tagName' | grep '^m-' | sort | head -1 | cut -c3-)
+          LAST=$(gh release list --limit 500 --json tagName -q '.[].tagName' | grep '^m-' | sort | tail -1 | cut -c3-)
+          python build_meta.py $FIRST $LAST
+          gh release view meta >/dev/null 2>&1 || gh release create meta --title "market data: symbols and top 100" --notes "Cross-month files. See market-data/README.md."
+          gh release upload meta out/meta/* --clobber
