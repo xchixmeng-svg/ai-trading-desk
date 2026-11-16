@@ -1,7 +1,7 @@
 # 共用行情資料（Chi / Claude / GPT 同一份）
 
 幣安 USDT 永續合約，**全部合約、包含已下架的**，來源是幣安官方公開檔案庫 data.binance.vision。
-從 2023-10 起，每月一個 GitHub Release（標籤 `m-YYYY-MM`），每月 3 號自動補上個月。
+從 2022-08 起，每月一個 GitHub Release（標籤 `m-YYYY-MM`），每月 3 號自動補上個月。
 時間全部是 UTC 毫秒。
 
 ## 檔案
