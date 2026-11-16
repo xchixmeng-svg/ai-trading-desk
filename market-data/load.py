@@ -50,7 +50,10 @@ def load(dataset, start, end, symbols=None, columns=None):
         names = sorted(f for f in man["files"] if f.startswith(dataset + "_p") or f == dataset + ".parquet")
         for f in names:
             filt = [("symbol", "in", list(want))] if want else None
-            parts.append(pd.read_parquet(fetch(f"m-{m}", f), columns=columns, filters=filt))
+            d = pd.read_parquet(fetch(f"m-{m}", f), columns=columns, filters=filt)
+            if "ts" in d and len(d) and d.ts.max() < 10 ** 12:      # metrics files built before 2026-11-16 store seconds
+                d["ts"] = d.ts * 1000
+            parts.append(d)
     return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
 
 

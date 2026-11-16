@@ -120,7 +120,7 @@ def metrics(sym, month):
     if not parts:
         return None
     d = pd.concat(parts)
-    d["ts"] = (pd.to_datetime(d.create_time, utc=True).astype("int64") // 10 ** 6).astype("int64")
+    d["ts"] = pd.to_datetime(d.create_time, utc=True).dt.as_unit("ms").astype("int64")   # UTC milliseconds
     keep = ["sum_open_interest", "sum_open_interest_value", "count_toptrader_long_short_ratio",
             "sum_toptrader_long_short_ratio", "count_long_short_ratio", "sum_taker_long_short_vol_ratio"]
     out = pd.DataFrame({"symbol": sym, "ts": d.ts})
