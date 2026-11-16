@@ -65,6 +65,11 @@ LIVE_TRADING_ENABLED=false
 ATD_DOMAIN=$DOMAIN
 ATD_CORS_ORIGINS=https://$DOMAIN
 ATD_BILLING_TOKEN=$(md atd-billing-token)
+ATD_LIVE_MODE=$(md atd-live-mode)
+ATD_BINANCE_KEY=$(md atd-binance-key)
+ATD_BINANCE_SECRET=$(md atd-binance-secret)
+ATD_TG_TOKEN=$(md atd-tg-token)
+ATD_TG_CHAT=$(md atd-tg-chat)
 ENV
 echo "ATD_DOMAIN=$DOMAIN" > /etc/ai-trading-desk/caddy.env
 chmod 600 /etc/ai-trading-desk/atd.env
