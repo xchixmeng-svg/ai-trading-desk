@@ -38,6 +38,7 @@ KCOLS = ["open_time", "open", "high", "low", "close", "volume", "close_time", "q
 
 
 ERRORS = []
+FILLED = []                                             # days taken from the daily archive
 
 
 def get(url, tries=6):
@@ -84,11 +85,38 @@ def ms(x):
     return x.where(x < 10 ** 14, x // 1000)                  # microsecond files -> milliseconds
 
 
+def daily_files(kind, sym, month):
+    """Days of `month` that Binance's daily archive has for this symbol (from the S3 index, no guessing)."""
+    pre = f"data/futures/um/daily/{kind}/{sym}/1m/{sym}-1m-{month}-"
+    x = get(S3 + pre)
+    if x is None:
+        return []
+    return sorted(set(re.findall(re.escape(pre) + r"(\d\d)\.zip<", x.decode())))
+
+
 def klines(sym, month):
+    """11/17: Binance's monthly files are sometimes cut short or missing (e.g. 48 coins lost 2022-02-26..28, AERGO
+    2026-07 has no monthly file) while the daily files are complete. Every day with fewer than 1,440 bars in the
+    monthly file is re-read from the daily file when one exists."""
     b = get(f"{DV}monthly/klines/{sym}/1m/{sym}-1m-{month}.zip")
-    if not b:
+    parts = [read_zip(b, KCOLS)] if b else []
+    have = {}
+    if parts:
+        t = pd.to_numeric(parts[0].open_time).astype("int64")
+        t = t.where(t < 10 ** 14, t // 1000)
+        have = (t // 86_400_000).value_counts().to_dict()
+    y, m = map(int, month.split("-"))
+    for dd in daily_files("klines", sym, month):
+        day = int(pd.Timestamp(f"{month}-{dd}", tz="UTC").timestamp() * 1000) // 86_400_000
+        if have.get(day, 0) >= 1440:
+            continue
+        x = get(f"{DV}daily/klines/{sym}/1m/{sym}-1m-{month}-{dd}.zip")
+        if x:
+            parts.append(read_zip(x, KCOLS))
+            FILLED.append(f"{sym} {month}-{dd}")
+    if not parts:
         return None
-    d = read_zip(b, KCOLS)
+    d = pd.concat(parts, ignore_index=True)
     out = pd.DataFrame({"symbol": sym, "open_time": ms(d.open_time)})
     for c in ("open", "high", "low", "close", "volume", "quote_volume", "taker_buy_quote"):
         out[c] = pd.to_numeric(d[c]).astype("float64")
@@ -191,6 +219,7 @@ def main():
            "sizes_mb": {f: round(os.path.getsize(f"{out}/{f}") / 1e6, 1) for f in files},
            "source": "https://data.binance.vision (Binance public archive), USDT-margined perpetuals incl. delisted",
            "errors": ERRORS,
+           "filled_from_daily": FILLED,
            "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     json.dump(man, open(f"{out}/manifest.json", "w"), indent=1)
     print(json.dumps({k: man[k] for k in ("month", "files", "sizes_mb")}), len(have), "symbols")
