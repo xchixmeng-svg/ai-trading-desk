@@ -1,0 +1,13 @@
+成本每邊 0.1%
+60天 低位15% | 前段 2筆 平均-1.04R 勝率0% 500U→479U 回落5% | 後段 37筆 平均+0.06R 勝率35% 500U→501U 回落33%
+60天 低位20% | 前段 3筆 平均-0.01R 勝率33% 500U→499U 回落7% | 後段 44筆 平均+0.05R 勝率43% 500U→501U 回落31%
+60天 低位25% | 前段 5筆 平均+0.16R 勝率40% 500U→507U 回落6% | 後段 48筆 平均-0.06R 勝率38% 500U→450U 回落37%
+/home/claude/pub/market-data/range_v1.py:116: RuntimeWarning: Mean of empty slice
+  line += f" | {pn} {len(tt)}筆 平均{R.mean():+.2f}R 勝率{(R > 0).mean():.0%} 500U→{end:,}U 回落{dd:.0%}"
+/usr/local/lib/python3.13/site-packages/numpy/_core/_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+90天 低位15% | 前段 0筆 平均+nanR 勝率nan% 500U→500U 回落0% | 後段 11筆 平均+0.51R 勝率36% 500U→552U 回落12%
+90天 低位20% | 前段 0筆 平均+nanR 勝率nan% 500U→500U 回落0% | 後段 12筆 平均+0.19R 勝率33% 500U→517U 回落14%
+90天 低位25% | 前段 0筆 平均+nanR 勝率nan% 500U→500U 回落0% | 後段 15筆 平均+0.29R 勝率40% 500U→537U 回落14%
+一直拿 BTC 前段: 500U → 709U，回落 77%
+一直拿 BTC 後段: 500U → 2,344U，回落 53%
