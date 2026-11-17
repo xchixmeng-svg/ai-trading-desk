@@ -131,6 +131,43 @@ for j in range(S):
 STR["區間低點 45天"] = book(rg)
 print("strategies", len(STR), flush=True)
 
+# ---- 資金流 (money-flow) strategies, 2026-11-17 night; metrics only exist from 2021-12 (zero before)
+import os
+if os.environ.get("FLOW"):
+    md = pd.read_parquet("metrics_daily.parquet"); md = md[md.symbol.isin(syms)].drop_duplicates(["symbol", "day"], keep="last")
+    MP = {x: md.pivot(index="day", columns="symbol", values=x).reindex(index=days, columns=syms).to_numpy() for x in ("oi", "acc", "top", "taker")}
+    OI = MP["oi"]
+    W = np.zeros((len(days), S))                                   # 1) new listings: short every coin in its first 30 days
+    for i in range(1, len(days)):
+        nw = np.nonzero((first > 30) & (np.arange(len(days))[i] - first >= 1) & (np.arange(len(days))[i] - first <= 30) & ~np.isnan(C[i]) & (Q[i] > 0))[0]   # Q, not q30: q30 is empty in the first 25 days (bug found 11-17)
+        if len(nw): W[i, nw] = -1 / max(len(nw), 5)
+    STR["新幣上市做空"] = run(W)
+    W = np.zeros((len(days), S)); oi1 = OI / np.vstack([np.full((1, S), np.nan), OI[:-1]]) - 1   # 2) liquidation flush -> bounce
+    for i in range(80, len(days)):
+        u = top(i, 50)
+        for j in u:
+            if R[i, j] <= -.08 and oi1[i, j] <= -.10: W[i:i + 5, j] += .1
+    W = np.minimum(W, .3); g_ = W.sum(1, keepdims=True); W = np.where(g_ > 1, W / np.maximum(g_, 1e-9), W)
+    STR["爆倉沖洗後做多"] = run(W)
+    for nm_, key, sign in (("散戶多空比反向", "acc", -1), ("大戶多空比跟隨", "top", 1)):
+        W = np.zeros((len(days), S)); X_ = MP[key]
+        for i in range(80, len(days)):
+            u = top(i, 50); v = X_[i, u]; ok = np.isfinite(v); u, v = u[ok], v[ok]
+            if len(u) < 20: continue
+            o = np.argsort(v); W[i, u[o[-10:]]] = .05 * sign; W[i, u[o[:10]]] = -.05 * sign
+        STR[nm_] = run(W)
+    W = np.zeros((len(days), S)); tk3 = pd.DataFrame(MP["taker"]).rolling(3, min_periods=2).mean().to_numpy()
+    for i in range(80, len(days)):
+        u = top(i, 50); v = tk3[i, u]; ok = np.isfinite(v); u, v = u[ok], v[ok]
+        if len(u) < 20: continue
+        o = np.argsort(v); W[i, u[o[-10:]]] = .05; W[i, u[o[:10]]] = -.05
+    STR["主動買力強者做多"] = run(W)
+    W = np.zeros((len(days), S)); oi7 = OI / np.vstack([np.full((7, S), np.nan), OI[:-7]]) - 1
+    for i in range(80, len(days)):
+        u = top(i, 50); r7_ = C[i, u] / C[i - 7, u] - 1; sel_ = u[(r7_ > 0) & (oi7[i, u] > .2)]
+        if len(sel_): W[i, sel_] = 1 / max(len(sel_), 5)
+    STR["上漲且持倉大增做多"] = run(W)
+    print("flow strategies added", flush=True)
 import os
 for k_ in [x for x in os.environ.get("DROP", "").split(",") if x]: STR.pop(k_)
 NM = list(STR); M = np.vstack([STR[k] for k in NM]).T          # days x strategies
