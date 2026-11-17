@@ -1,0 +1,33 @@
+coins 716
+top100 ready
+breakout candidates 32743
+DIP trades 63
+{'quarter': '2021-09', 'breakout': '突破 8天 寬18% 量1.5x 全部 多', 'train_sumR': 198.9, 'train_n': 628, 'dip': False, 'test_n': 270, 'test_sumR': -86.06}
+{'quarter': '2021-12', 'breakout': '突破 8天 寬12% 量1.5x 全部 多空', 'train_sumR': 11.4, 'train_n': 106, 'dip': False, 'test_n': 70, 'test_sumR': 33.61}
+{'quarter': '2022-03', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 83.1, 'train_n': 365, 'dip': np.False_, 'test_n': 123, 'test_sumR': 73.95}
+{'quarter': '2022-06', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 191.0, 'train_n': 1267, 'dip': np.False_, 'test_n': 336, 'test_sumR': 9.09}
+{'quarter': '2022-09', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 227.6, 'train_n': 581, 'dip': np.False_, 'test_n': 402, 'test_sumR': -96.81}
+{'quarter': '2022-12', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 137.3, 'train_n': 872, 'dip': np.False_, 'test_n': 464, 'test_sumR': -5.59}
+{'quarter': '2023-03', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 315.7, 'train_n': 2800, 'dip': np.False_, 'test_n': 893, 'test_sumR': -81.2}
+{'quarter': '2023-06', 'breakout': '突破 12天 寬15% 量1.5x 全部 多空', 'train_sumR': 138.8, 'train_n': 954, 'dip': np.False_, 'test_n': 318, 'test_sumR': 148.53}
+{'quarter': '2023-09', 'breakout': '突破 10天 寬18% 量1.5x 全部 多空', 'train_sumR': 333.3, 'train_n': 2814, 'dip': False, 'test_n': 828, 'test_sumR': 41.84}
+{'quarter': '2023-12', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 573.2, 'train_n': 4183, 'dip': False, 'test_n': 821, 'test_sumR': 286.26}
+{'quarter': '2024-03', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 459.8, 'train_n': 3860, 'dip': False, 'test_n': 378, 'test_sumR': -23.72}
+{'quarter': '2024-06', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 517.3, 'train_n': 3345, 'dip': False, 'test_n': 721, 'test_sumR': 141.07}
+{'quarter': '2024-09', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 468.8, 'train_n': 2994, 'dip': np.True_, 'test_n': 698, 'test_sumR': -113.35}
+{'quarter': '2024-12', 'breakout': '突破 8天 寬18% 量1.5x 全部 多空', 'train_sumR': 290.3, 'train_n': 2618, 'dip': np.True_, 'test_n': 395, 'test_sumR': -66.67}
+{'quarter': '2025-03', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 210.4, 'train_n': 1025, 'dip': np.True_, 'test_n': 178, 'test_sumR': 31.39}
+{'quarter': '2025-06', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 180.8, 'train_n': 1002, 'dip': np.True_, 'test_n': 184, 'test_sumR': -74.81}
+{'quarter': '2025-09', 'breakout': '突破 12天 寬18% 量1.5x 全部 多', 'train_sumR': 217.3, 'train_n': 737, 'dip': np.True_, 'test_n': 163, 'test_sumR': -41.35}
+{'quarter': '2025-12', 'breakout': '突破 8天 寬18% 量2.0x 全部 多空', 'train_sumR': 266.6, 'train_n': 1562, 'dip': np.True_, 'test_n': 598, 'test_sumR': 87.76}
+{'quarter': '2026-03', 'breakout': '突破 8天 寬18% 量2.0x 全部 多空', 'train_sumR': 386.1, 'train_n': 1902, 'dip': np.True_, 'test_n': 624, 'test_sumR': 12.91}
+{'quarter': '2026-06', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 384.3, 'train_n': 1304, 'dip': np.True_, 'test_n': 425, 'test_sumR': -98.64}
+{'quarter': '2026-09', 'breakout': '突破 8天 寬18% 量1.5x 全部 空', 'train_sumR': 361.9, 'train_n': 1534, 'dip': np.True_, 'test_n': 203, 'test_sumR': 9.18}
+
+=== 帳戶 500U，2021-09～2026-11（只用考試期的單）===
+穩健：突破 2%、抄底 2% 滾動挑策略: 500U → 171U，最大回落 92%，2050 筆，各年底 {2021: 336, 2022: 811, 2023: 942, 2024: 623, 2025: 227, 2026: 172}
+穩健：突破 2%、抄底 2% 固定 v12 不換: 500U → 8,065U，最大回落 51%，580 筆，各年底 {2021: 490, 2022: 370, 2023: 593, 2024: 1148, 2025: 2833, 2026: 8084}
+進取：突破 4%、抄底 7.5% 滾動挑策略: 500U → 52U，最大回落 99%，1139 筆，各年底 {2021: 355, 2022: 1311, 2023: 1259, 2024: 551, 2025: 151, 2026: 53}
+進取：突破 4%、抄底 7.5% 固定 v12 不換: 500U → 93,686U，最大回落 60%，462 筆，各年底 {2021: 479, 2022: 330, 2023: 506, 2024: 1772, 2025: 15200, 2026: 94087}
+一直拿 BTC: 500U → 819U，最大回落 77%，各年底 {2021: 499, 2022: 176, 2023: 447, 2024: 983, 2025: 937, 2026: 819}
+BTC 站上 200 日線才拿: 500U → 1,233U，最大回落 36%，各年底 {2021: 378, 2022: 378, 2023: 732, 2024: 1322, 2025: 1107, 2026: 1233}
