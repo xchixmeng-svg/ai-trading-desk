@@ -213,7 +213,7 @@ print("DIP trades", len(DIP), flush=True)
 
 
 # ---- 3) account (策略_AB.md section 4)
-def pool(T, a0, a1, risk={"A": .0575, "B": .0225, "DIP": .075}):
+def pool(T, a0, a1, risk={"A": .0575, "B": .0225, "DIP": .075}, kill=.60):
     T = [r for r in T if a0 <= r["t"] < a1]
     ev = sorted([(r["t"], 1, n) for n, r in enumerate(T)] + [(r["xt"], 0, n) for n, r in enumerate(T)])
     marks = {}
@@ -224,7 +224,7 @@ def pool(T, a0, a1, risk={"A": .0575, "B": .0225, "DIP": .075}):
         while hi < len(hs) and hs[hi] <= tm:
             eq = cash + sum(opn[m][0] * v for m, v in marks[hs[hi]] if m in opn)
             peak = max(peak, eq); dd = max(dd, 1 - eq / peak)
-            if 1 - eq / peak >= .60: dead = True
+            if 1 - eq / peak >= kill: dead = True
             yearly[dt.datetime.fromtimestamp(hs[hi] / 1000, dt.UTC).year] = eq; hi += 1
         r = T[n]
         if typ == 0:
@@ -275,6 +275,17 @@ for nm, (a0, a1) in (("新資料 2020-09～2022-12（從沒用過）", NEW), ("�
     print(f"   只做 A + 抄底: 500U → {c3:,.0f}U，最大回落 {d3:.0%}，成交 {n3} 筆，各年底 {({k: round(v) for k, v in y3.items()})}")
     acc[nm]["A_plus_dip"] = {"end": round(c3), "max_dd": round(d3, 3), "trades": n3}
 res["account"] = acc
+print("\n--- 不停機（拿掉 60% 停機線，其他不變）---")
+nk = {}
+for nm, (a0, a1) in (("新資料 2020-09～2022-12", NEW), ("舊資料 2023-01～2026-10", OLD), ("全部 2020-09～2026-10", (NEW[0], OLD[1]))):
+    for lab, T in (("v12 全部", base + DIP), ("只做 A + 抄底", [r for r in base if r["kind"] == "A"] + DIP)):
+        c_, d_, y_, n_ = pool(T, a0, a1, kill=9)
+        print(f"{nm} {lab}: 500U → {c_:,.0f}U，最大回落 {d_:.0%}，成交 {n_} 筆，各年底 {({k: round(v) for k, v in y_.items()})}")
+        nk[f"{nm} {lab}"] = {"end": round(c_), "max_dd": round(d_, 3), "trades": n_, "year_end": {k: round(v) for k, v in y_.items()}}
+res["account_no_kill"] = nk
+import os
+if os.environ.get("NO_GRID"):
+    json.dump(res, open(f"robust_v12_cost{COST}_nokill.json", "w"), ensure_ascii=False, indent=1); sys.exit()
 print("\n--- 參數換鄰近值（27 組；每筆平均 R：新資料 / 舊資料；帳戶 = 全部期間 500U）---")
 grid = []
 for L in LS:
