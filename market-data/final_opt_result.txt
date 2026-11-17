@@ -1,0 +1,21 @@
+strategies 15
+flow strategies added
+streams 263
+
+設定組合 240 組；最大回落 ≤60% 的有 71 組。前 15 名：
+每1月 Sharpe≥0.5 前4 equal 放大(10, 5, 2) 停損None: 500U → 27,519U 回落 58%
+每2月 Sharpe≥0.5 前2 equal 放大(4, 2, 1) 停損None: 500U → 20,911U 回落 57%
+每2月 Sharpe≥0.5 前2 equal 放大(6, 3, 1) 停損None: 500U → 19,427U 回落 57%
+每2月 Sharpe≥0.5 前2 equal 放大(4, 2, 1) 停損0.25: 500U → 18,353U 回落 57%
+每2月 Sharpe≥0.5 前3 equal 放大(6, 3, 1) 停損None: 500U → 16,974U 回落 51%
+每2月 Sharpe≥0.5 前2 sharpe 放大(6, 3, 1) 停損None: 500U → 16,076U 回落 59%
+每2月 Sharpe≥0.5 前2 sharpe 放大(4, 2, 1) 停損None: 500U → 14,690U 回落 58%
+每2月 Sharpe≥0.5 前2 sharpe 放大(4, 2, 1) 停損0.25: 500U → 14,683U 回落 58%
+每1月 Sharpe≥0.5 前4 equal 放大(12, 6, 2) 停損None: 500U → 13,942U 回落 59%
+每2月 Sharpe≥0.5 前4 sharpe 放大(6, 3, 1) 停損0.25: 500U → 13,219U 回落 50%
+每2月 Sharpe≥0.5 前4 sharpe 放大(6, 3, 1) 停損None: 500U → 11,933U 回落 51%
+每2月 Sharpe≥0.5 前3 sharpe 放大(6, 3, 1) 停損None: 500U → 9,715U 回落 54%
+每1月 Sharpe≥0.5 前4 sharpe 放大(6, 3, 1) 停損None: 500U → 9,347U 回落 46%
+每2月 Sharpe≥0.5 前3 sharpe 放大(4, 2, 1) 停損0.25: 500U → 8,742U 回落 54%
+每1月 Sharpe≥0.5 前4 sharpe 放大(6, 3, 1) 停損0.25: 500U → 8,444U 回落 46%
+全部最高： {'P': 2, 'thr': 0.5, 'topn': 2, 'w': 'equal', 'tiers': (12, 6, 2), 'stop': None, 'end': np.float64(729433.7240248143), 'mdd': np.float64(0.7601935103778898)}
