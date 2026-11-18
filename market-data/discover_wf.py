@@ -33,6 +33,8 @@ LAB = {"w": "盤整寬度", "d": "停損距離", "vx": "4h量倍數", "r4": "4h 
 NUM = ["w", "d", "vx", "r4", "rd", "acc", "topacc", "taker", "oi24", "fund", "btc_r7", "r7", "r30", "dd30", "age", "atr", "vrank", "r4h"]
 BIN = ["hist_dir", "vdiv", "btc_up", "ham", "rd_dir"]
 STEP = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+LB = int(sys.argv[2]) if len(sys.argv) > 2 else 12
+PICK = sys.argv[3] if len(sys.argv) > 3 else "score"
 K = 5; RISKS = (.01, .02, .03, .045, .06, .075, .10)
 
 fam, side, L = F[:, fi["fam"]], F[:, fi["side"]], F[:, fi["L"]]
@@ -190,9 +192,14 @@ if __name__ == "__main__":
     END = ts_("2026-11-01")
     ALLTR = []; RISK = {}; PLAN = []
     for pi, q in enumerate(P):
-        a1 = int(q.timestamp() * 1000); a0 = int((q - pd.DateOffset(months=12)).timestamp() * 1000)
+        a1 = int(q.timestamp() * 1000); a0 = int((q - pd.DateOffset(months=LB)).timestamp() * 1000)
         b1 = int(P[pi + 1].timestamp() * 1000) if pi + 1 < len(P) else END
-        found = search(a0, a1)
+        found = search(a0, a1, keep=10 if PICK == "minq" else 3)
+        if PICK == "minq":                      # rank by the worst of 4 equal sub-periods (every part must hold up)
+            for r in found:
+                tt = T[r["idx"]]; qs_ = [r["R"][(tt >= a0 + k_ * (a1 - a0) // 4) & (tt < a0 + (k_ + 1) * (a1 - a0) // 4)].sum() for k_ in range(4)]
+                r["minq"] = min(qs_)
+            found.sort(key=lambda z_: -z_["minq"])
         chosen = []; cover = set()
         for r in found:
             keys = {(S[i], T[i]) for i in r["idx"]}
@@ -236,7 +243,7 @@ if __name__ == "__main__":
     resets = [int(p.timestamp() * 1000) for p in P[1:]]
     c_, d_, n_, log, curve = pool(ALLTR, RISK, resets=resets)
     print(f"\n=== 2023-01～2026-10 每{STEP}個月重擬：500U → {c_:,.0f}U，最大回落 {d_:.0%}，{n_} 筆", flush=True)
-    tag = f"_s{STEP}"
+    tag = f"_s{STEP}" + (f"_lb{LB}_{PICK}" if (LB, PICK) != (12, "score") else "")
     json.dump(PLAN, open(f"discover_plan{tag}.json", "w"), ensure_ascii=False, indent=1, default=float)
     pd.DataFrame([{k_: v for k_, v in r.items() if k_ != "mk"} for r in log]).to_csv(f"discover_trades{tag}.csv", index=False)
     pd.DataFrame(curve, columns=["t", "eq"]).to_csv(f"discover_curve{tag}.csv", index=False)
