@@ -281,6 +281,19 @@ xd = pd.read_parquet("daily.parquet"); bt = xd[xd.symbol == "BTCUSDT"].sort_valu
 up = (bt.c > bt.c.rolling(50).mean()).to_numpy(); UP = dict(zip(bt.day.to_numpy() + D, up))   # usable from the next day
 def btcup(t): return bool(UP.get(t - t % D, True))
 side_of = {(r["s"], r["t"]): r["side"] for r in C}
+def rev(r):
+    """same signal traded the other way: short at the same entry, stop = entry + same distance, trailing as v12"""
+    b = B[r["s"]]; ot = b[:, 0]; i = int(np.searchsorted(ot, r["t"])); d = r["d"]
+    if i >= len(b) or ot[i] != r["t"]: return None
+    e = b[i, 1]; sl = e * (1 + d); best = e; hourly = []; x = None
+    for j in range(i, min(len(b), i + 720)):
+        o_, h_, l_, c_ = b[j, 1:5]
+        if h_ >= sl: x = max(o_, sl); xt = int(ot[j]) + H; break
+        best = min(best, l_); sl = min(sl, best * (1 + d))
+        hourly.append((int(ot[j]) + H, (1 - c_ / e) / d))
+    if x is None: j = min(len(b) - 1, i + 719); x = b[j, 4]; xt = int(ot[j]) + H
+    R = ((1 - x / e) - COST + fund(r["s"], r["t"], xt)) / d
+    return dict(r, side=-1, R=R, xt=xt, hourly=hourly, kind=r["kind"])
 def tag(T, mode):
     out = []
     for r in T:
@@ -288,6 +301,10 @@ def tag(T, mode):
         if k != "DIP" and not btcup(r["t"]):
             if mode == "half": k = k + "_dn"
             elif mode == "off": continue
+            elif mode == "reverse" and r.get("side", 1) > 0:
+                rr = rev(r)
+                if rr is not None: out.append(rr)
+                continue
             elif mode in ("longoff", "trend", "trend_nodip") and side_of.get((r["s"], r["t"]), 1) > 0: continue
         if k != "DIP" and btcup(r["t"]) and mode in ("trend", "trend_nodip") and side_of.get((r["s"], r["t"]), 1) < 0: continue
         if k == "DIP" and mode == "trend_nodip": continue
@@ -295,8 +312,8 @@ def tag(T, mode):
     return out
 RK = dict(SPEC, A_dn=SPEC["A"] / 2, B_dn=SPEC["B"] / 2)
 PER = [("2020-09～2022-12", "2020-09-01", "2023-01-01"), ("2023-01～2026-10", "2023-01-01", "2026-11-01"), ("2020-09～2026-10 全期", "2020-09-01", "2026-11-01")]
-for mode, lab in (("all", "一直開（v12 原樣）"), ("half", "BTC 在 50 日線下 → 突破減半"), ("off", "BTC 在 50 日線下 → 突破全停"), ("longoff", "BTC 在 50 日線下 → 只停突破做多"), ("trend", "完全順勢（線上只做多、線下只做空，抄底照做）"), ("trend_nodip", "完全順勢＋不抄底")):
-    if mode not in ("longoff", "trend", "trend_nodip"): continue
+for mode, lab in (("all", "一直開（v12 原樣）"), ("half", "BTC 在 50 日線下 → 突破減半"), ("off", "BTC 在 50 日線下 → 突破全停"), ("longoff", "BTC 在 50 日線下 → 只停突破做多"), ("trend", "完全順勢（線上只做多、線下只做空，抄底照做）"), ("trend_nodip", "完全順勢＋不抄底"), ("reverse", "BTC 在 50 日線下 → 突破做多訊號反手做空")):
+    if mode not in ("longoff", "reverse"): continue
     T = tag(ALL, mode)
     for pn, a, b in PER:
         c_, d_, y_, n_ = pool(T, int(pd.Timestamp(a, tz="UTC").timestamp() * 1000), int(pd.Timestamp(b, tz="UTC").timestamp() * 1000), risk=RK, kill=.60)
