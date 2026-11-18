@@ -288,12 +288,15 @@ def tag(T, mode):
         if k != "DIP" and not btcup(r["t"]):
             if mode == "half": k = k + "_dn"
             elif mode == "off": continue
-            elif mode == "longoff" and side_of.get((r["s"], r["t"]), 1) > 0: continue
+            elif mode in ("longoff", "trend", "trend_nodip") and side_of.get((r["s"], r["t"]), 1) > 0: continue
+        if k != "DIP" and btcup(r["t"]) and mode in ("trend", "trend_nodip") and side_of.get((r["s"], r["t"]), 1) < 0: continue
+        if k == "DIP" and mode == "trend_nodip": continue
         out.append(dict(r, kind=k))
     return out
 RK = dict(SPEC, A_dn=SPEC["A"] / 2, B_dn=SPEC["B"] / 2)
 PER = [("2020-09～2022-12", "2020-09-01", "2023-01-01"), ("2023-01～2026-10", "2023-01-01", "2026-11-01"), ("2020-09～2026-10 全期", "2020-09-01", "2026-11-01")]
-for mode, lab in (("all", "一直開（v12 原樣）"), ("half", "BTC 在 50 日線下 → 突破減半"), ("off", "BTC 在 50 日線下 → 突破全停"), ("longoff", "BTC 在 50 日線下 → 只停突破做多")):
+for mode, lab in (("all", "一直開（v12 原樣）"), ("half", "BTC 在 50 日線下 → 突破減半"), ("off", "BTC 在 50 日線下 → 突破全停"), ("longoff", "BTC 在 50 日線下 → 只停突破做多"), ("trend", "完全順勢（線上只做多、線下只做空，抄底照做）"), ("trend_nodip", "完全順勢＋不抄底")):
+    if mode not in ("longoff", "trend", "trend_nodip"): continue
     T = tag(ALL, mode)
     for pn, a, b in PER:
         c_, d_, y_, n_ = pool(T, int(pd.Timestamp(a, tz="UTC").timestamp() * 1000), int(pd.Timestamp(b, tz="UTC").timestamp() * 1000), risk=RK, kill=.60)
